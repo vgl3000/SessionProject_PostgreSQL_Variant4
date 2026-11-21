@@ -78,9 +78,9 @@ class Main:
             value = self.ask(f"Номер {title} в списке (0 — отмена): ").strip()
             if value == "0":
                 return None
-            if value.isascii() and value.isdecimal() and len(value) <= 4 and 1 <= int(value) <= len(rows):
+            if value.isascii() and value.isdecimal() and 1 <= len(value) <= len(str(len(rows))) and 1 <= int(value) <= len(rows):
                 return rows[int(value) - 1]
-            print("Введите номер строки из текущего списка.")
+            print("Введите номер строки из списка.")
 
     @staticmethod
     def run_action(action, *args):
