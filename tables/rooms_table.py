@@ -31,17 +31,14 @@ class RoomsTable(DbTable):
             with self.dbconn.conn.cursor() as cursor:
                 cursor.execute(query)
 
-    def count(self):
-        return self._one(sql.SQL("SELECT COUNT(*) AS total FROM {}").format(self.table_ref))["total"]
-
-    def list_page(self, limit, offset):
+    def list_all(self):
         query = sql.SQL("""
             SELECT r.id, r.name, r.useful_volume, r.min_temperature, r.max_temperature,
                    r.min_humidity, r.max_humidity,
                    (SELECT COUNT(*) FROM {} k WHERE k.room_id = r.id) AS racks_count
-            FROM {} r ORDER BY lower(r.name), r.name, r.id LIMIT %s OFFSET %s
+            FROM {} r ORDER BY lower(r.name), r.name, r.id
         """).format(sql.Identifier(self.dbconn.schema, "racks"), self.table_ref)
-        return self._all(query, (limit, offset))
+        return self._all(query)
 
     def get(self, room_id):
         return self._one(sql.SQL("""

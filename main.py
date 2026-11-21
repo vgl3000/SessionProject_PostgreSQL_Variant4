@@ -3,11 +3,9 @@
 # Условия варианта: таблицы «помещения» и «стеллажи» без связей с другими таблицами.
 # Первая таблица: просмотр, добавление, изменение и удаление помещений.
 # Вторая таблица: просмотр и добавление стеллажей выбранного помещения, удаление.
-# Дополнительно: постраничный просмотр и изменение стеллажей (задания 6 и 7).
 # Пользователь не видит и не вводит значения суррогатных ключей.
 
 """Консольное CRUD-приложение PostgreSQL. Вариант 4."""
-import math
 import psycopg2
 from dbconnection import DbConnection
 from dbtable import DataChangedError, database_error_text
@@ -18,10 +16,6 @@ from validation import (
     ValidationError, room_name, volume, temperature, humidity, nullable,
     room_environment, rack_number, places_count, dimension, max_load,
 )
-
-PAGE_SIZE = 8
-CANCEL = object()
-
 
 class UserExit(Exception):
     """Запрошено закрытие приложения."""
@@ -81,17 +75,12 @@ class Main:
             print("Список пуст.")
             return None
         while True:
-            value = self.ask(f"Номер {title} на текущей странице (0 — отмена): ").strip()
+            value = self.ask(f"Номер {title} в списке (0 — отмена): ").strip()
             if value == "0":
                 return None
             if value.isascii() and value.isdecimal() and len(value) <= 4 and 1 <= int(value) <= len(rows):
                 return rows[int(value) - 1]
             print("Введите номер строки из текущего списка.")
-
-    @staticmethod
-    def pagination(total, page):
-        last = max(1, math.ceil(total / PAGE_SIZE))
-        return min(page, last - 1), last
 
     @staticmethod
     def run_action(action, *args):
@@ -181,12 +170,9 @@ class Main:
         return "—" if value is None else str(value)
 
     def show_rooms(self):
-        page = 0
         while True:
-            total = self.rooms.count()
-            page, total_pages = self.pagination(total, page)
-            rows = self.rooms.list_page(PAGE_SIZE, page * PAGE_SIZE)
-            print(f"\n=== ПОМЕЩЕНИЯ | страница {page + 1}/{total_pages} | всего {total} ===")
+            rows = self.rooms.list_all()
+            print("\n=== ПОМЕЩЕНИЯ ===")
             for number, row in enumerate(rows, 1):
                 print(f"{number}. {row['name']} | объём {row['useful_volume']} м³ | стеллажей: {row['racks_count']}")
                 print("   температура: " + self.text_nullable(row["min_temperature"]) + "…" +
@@ -196,7 +182,7 @@ class Main:
             if not rows:
                 print("(Записей нет)")
             print("1 — добавить; 2 — изменить; 3 — удалить; 4 — стеллажи помещения")
-            print("5 — следующая; 6 — предыдущая; 0 — главное меню; 9 — выход")
+            print("0 — главное меню; 9 — выход")
             choice = self.ask("Действие: ").strip()
             if choice == "0":
                 return
@@ -213,16 +199,6 @@ class Main:
                         self.run_action(self.delete_room, selected)
                     else:
                         self.show_racks(selected["id"])
-            elif choice == "5":
-                if page + 1 < total_pages:
-                    page += 1
-                else:
-                    print("Последняя страница.")
-            elif choice == "6":
-                if page > 0:
-                    page -= 1
-                else:
-                    print("Первая страница.")
             else:
                 print("Неизвестная команда.")
 
@@ -232,19 +208,6 @@ class Main:
         if values is not None:
             self.racks.insert_one(room_id, *values)
             print("Стеллаж добавлен.")
-
-    def edit_rack(self, room_id, selected):
-        old = self.racks.get_in_room(selected["id"], room_id)
-        if old is None:
-            print("Стеллаж уже удалён или перемещён. Обновите список.")
-            return
-        print(f"\nРедактирование стеллажа №{old['rack_number']}. Enter — оставить значение.")
-        values = self.ask_fields(self.rack_definitions(old), editing=True)
-        if values is not None:
-            if self.racks.update_one(old["id"], room_id, *values):
-                print("Стеллаж изменён.")
-            else:
-                print("Стеллаж не найден.")
 
     def delete_rack(self, room_id, selected):
         old = self.racks.get_in_room(selected["id"], room_id)
@@ -260,24 +223,20 @@ class Main:
             print("Удаление отменено.")
 
     def show_racks(self, room_id):
-        page = 0
         while True:
             room = self.rooms.get(room_id)
             if room is None:
                 print("Помещение удалено другим пользователем. Возврат к списку.")
                 return
-            total = self.racks.count_by_room(room_id)
-            page, total_pages = self.pagination(total, page)
-            rows = self.racks.list_page_by_room(room_id, PAGE_SIZE, page * PAGE_SIZE)
-            print(f"\n=== СТЕЛЛАЖИ: {room['name']} | страница {page + 1}/{total_pages} | всего {total} ===")
+            rows = self.racks.list_by_room(room_id)
+            print(f"\n=== СТЕЛЛАЖИ: {room['name']} ===")
             for number, row in enumerate(rows, 1):
                 print(f"{number}. Стеллаж №{row['rack_number']}; мест {row['places_count']}; "
                       f"размер места (В×Ш×Д) {row['place_height']}×{row['place_width']}×{row['place_length']} м; "
                       f"нагрузка {row['max_load']} кг")
             if not rows:
                 print("(Стеллажей нет)")
-            print("1 — добавить; 2 — изменить; 3 — удалить; 4 — следующая; 5 — предыдущая")
-            print("0 — к помещениям; 9 — выход")
+            print("1 — добавить; 2 — удалить; 0 — к помещениям; 9 — выход")
             choice = self.ask("Действие: ").strip()
             if choice == "0":
                 return
@@ -285,23 +244,10 @@ class Main:
                 raise UserExit
             if choice == "1":
                 self.run_action(self.add_rack, room_id)
-            elif choice in {"2", "3"}:
+            elif choice == "2":
                 selected = self.choose_visible_row(rows, "стеллажа")
                 if selected is not None:
-                    if choice == "2":
-                        self.run_action(self.edit_rack, room_id, selected)
-                    else:
-                        self.run_action(self.delete_rack, room_id, selected)
-            elif choice == "4":
-                if page + 1 < total_pages:
-                    page += 1
-                else:
-                    print("Последняя страница.")
-            elif choice == "5":
-                if page > 0:
-                    page -= 1
-                else:
-                    print("Первая страница.")
+                    self.run_action(self.delete_rack, room_id, selected)
             else:
                 print("Неизвестная команда.")
 

@@ -6,7 +6,7 @@ import unittest
 from decimal import Decimal
 from unittest.mock import Mock, patch
 
-from main import Main, PAGE_SIZE
+from main import Main
 
 
 class InterfaceTests(unittest.TestCase):
@@ -14,12 +14,6 @@ class InterfaceTests(unittest.TestCase):
         self.app = Main.__new__(Main)
         self.app.rooms = Mock()
         self.app.racks = Mock()
-
-    def test_pagination(self):
-        self.assertEqual(Main.pagination(0, 0), (0, 1))
-        self.assertEqual(Main.pagination(PAGE_SIZE, 0), (0, 1))
-        self.assertEqual(Main.pagination(PAGE_SIZE + 1, 1), (1, 2))
-        self.assertEqual(Main.pagination(1, 99), (0, 1))
 
     def test_choice_uses_screen_number_not_id(self):
         rows = [{"id": 105, "name": "Склад 1"}, {"id": 999, "name": "Склад 2"}]

@@ -27,12 +27,12 @@ class RacksTable(DbTable):
     def count_by_room(self, room_id):
         return self._one(sql.SQL("SELECT COUNT(*) AS total FROM {} WHERE room_id=%s").format(self.table_ref), (room_id,))["total"]
 
-    def list_page_by_room(self, room_id, limit, offset):
+    def list_by_room(self, room_id):
         return self._all(sql.SQL("""
             SELECT id, rack_number, places_count, place_height, place_width,
                    place_length, max_load FROM {} WHERE room_id=%s
-            ORDER BY rack_number, id LIMIT %s OFFSET %s
-        """).format(self.table_ref), (room_id, limit, offset))
+            ORDER BY rack_number, id
+        """).format(self.table_ref), (room_id,))
 
     def get_in_room(self, rack_id, room_id):
         return self._one(sql.SQL("""
@@ -47,14 +47,6 @@ class RacksTable(DbTable):
             VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING id
         """).format(self.table_ref),
             (room_id, rack_number, places_count, height, width, length, load), returning=True)
-
-    def update_one(self, rack_id, room_id, rack_number, places_count, height, width, length, load):
-        return self._execute(sql.SQL("""
-            UPDATE {} SET rack_number=%s, places_count=%s, place_height=%s,
-                          place_width=%s, place_length=%s, max_load=%s
-            WHERE id=%s AND room_id=%s RETURNING id
-        """).format(self.table_ref),
-            (rack_number, places_count, height, width, length, load, rack_id, room_id), returning=True) is not None
 
     def delete_one(self, rack_id, room_id):
         return self._execute(
