@@ -1,0 +1,8 @@
+# Скопируйте в config.yaml; не добавляйте свой пароль в Git.
+# Сначала создайте базу warehouse_session_v4, затем выполните sql/01_schema.sql.
+dbname: warehouse_session_v4
+user: postgres
+password: ""
+host: localhost
+port: 5432
+schema: session_v4
